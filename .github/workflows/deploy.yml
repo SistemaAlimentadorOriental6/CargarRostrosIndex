@@ -23,51 +23,41 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            # Crear directorio si no existe
-            mkdir -p /var/www/Scripts/CargarRostrosIndex
-            cd /var/www/Scripts/CargarRostrosIndex
-            
-            # Si no es un repo git, clonarlo primero (asumiendo que ya existe o se maneja externamente)
-            # O simplemente pull si ya existe
-            if [ -d ".git" ]; then
-              git pull origin main
-            else
-              # Aquí podrías poner el git clone si fuera necesario
-              echo "Git repository not found, please clone manually or adjust script"
-            fi
+      - name: Deploy to Target Directory
+        run: |
+          # Asegurar que el directorio existe
+          sudo mkdir -p /var/www/Scripts/CargarRostrosIndex
+          sudo chown -R $USER:$USER /var/www/Scripts/CargarRostrosIndex
+          
+          # Sincronizar archivos del checkout a la carpeta de destino
+          rsync -avz --exclude '.git' ./ /var/www/Scripts/CargarRostrosIndex/
+          
+          cd /var/www/Scripts/CargarRostrosIndex
 
-            # Crear archivo .env desde secretos de GitHub
-            echo "DB_BIOMETRICA_HOST=${{ secrets.DB_BIOMETRICA_HOST }}" > .env
-            echo "DB_BIOMETRICA_PORT=${{ secrets.DB_BIOMETRICA_PORT }}" >> .env
-            echo "DB_BIOMETRICA_USERNAME=${{ secrets.DB_BIOMETRICA_USERNAME }}" >> .env
-            echo "DB_BIOMETRICA_PASSWORD=${{ secrets.DB_BIOMETRICA_PASSWORD }}" >> .env
-            echo "DB_BIOMETRICA_DATABASE=${{ secrets.DB_BIOMETRICA_DATABASE }}" >> .env
-            echo "DB_BIOMETRICA_SYNCHRONIZE=${{ secrets.DB_BIOMETRICA_SYNCHRONIZE }}" >> .env
-            echo "DB_BIOMETRICA_LOGGING=${{ secrets.DB_BIOMETRICA_LOGGING }}" >> .env
+          # Crear archivo .env desde secretos de GitHub
+          echo "DB_BIOMETRICA_HOST=${{ secrets.DB_BIOMETRICA_HOST }}" > .env
+          echo "DB_BIOMETRICA_PORT=${{ secrets.DB_BIOMETRICA_PORT }}" >> .env
+          echo "DB_BIOMETRICA_USERNAME=${{ secrets.DB_BIOMETRICA_USERNAME }}" >> .env
+          echo "DB_BIOMETRICA_PASSWORD=${{ secrets.DB_BIOMETRICA_PASSWORD }}" >> .env
+          echo "DB_BIOMETRICA_DATABASE=${{ secrets.DB_BIOMETRICA_DATABASE }}" >> .env
+          echo "DB_BIOMETRICA_SYNCHRONIZE=${{ secrets.DB_BIOMETRICA_SYNCHRONIZE }}" >> .env
+          echo "DB_BIOMETRICA_LOGGING=${{ secrets.DB_BIOMETRICA_LOGGING }}" >> .env
 
-            echo "DB_PRODUCCION_HOST=${{ secrets.DB_PRODUCCION_HOST }}" >> .env
-            echo "DB_PRODUCCION_PORT=${{ secrets.DB_PRODUCCION_PORT }}" >> .env
-            echo "DB_PRODUCCION_USER=${{ secrets.DB_PRODUCCION_USER }}" >> .env
-            echo "DB_PRODUCCION_PASSWORD=${{ secrets.DB_PRODUCCION_PASSWORD }}" >> .env
-            echo "DB_PRODUCCION_DATABASE=${{ secrets.DB_PRODUCCION_DATABASE }}" >> .env
+          echo "DB_PRODUCCION_HOST=${{ secrets.DB_PRODUCCION_HOST }}" >> .env
+          echo "DB_PRODUCCION_PORT=${{ secrets.DB_PRODUCCION_PORT }}" >> .env
+          echo "DB_PRODUCCION_USER=${{ secrets.DB_PRODUCCION_USER }}" >> .env
+          echo "DB_PRODUCCION_PASSWORD=${{ secrets.DB_PRODUCCION_PASSWORD }}" >> .env
+          echo "DB_PRODUCCION_DATABASE=${{ secrets.DB_PRODUCCION_DATABASE }}" >> .env
 
-            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
-            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
-            echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
-            echo "AWS_COLLECTION_ID=${{ secrets.AWS_COLLECTION_ID }}" >> .env
-            echo "SYNC_INTERVAL_MS=${{ secrets.SYNC_INTERVAL_MS }}" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
+          echo "AWS_COLLECTION_ID=${{ secrets.AWS_COLLECTION_ID }}" >> .env
+          echo "SYNC_INTERVAL_MS=${{ secrets.SYNC_INTERVAL_MS }}" >> .env
 
-            # Instalar y construir
-            npm i --legacy-peer-deps
-            npm run build
+          # Instalar y construir
+          npm i --legacy-peer-deps
+          npm run build
 
-            # Reiniciar con PM2
-            pm2 restart CargarRostrosIndex || pm2 start dist/index.js --name CargarRostrosIndex
+          # Reiniciar con PM2
+          pm2 restart CargarRostrosIndex || pm2 start dist/index.js --name CargarRostrosIndex
